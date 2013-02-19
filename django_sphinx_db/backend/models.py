@@ -24,6 +24,11 @@ class SphinxQuerySet(QuerySet):
         # never another configured database.
         return self._clone()
 
+    def match(self, expression):
+        qs = self._clone()
+        match = "MATCH('%s')" % (expression,)
+        return qs.extra(where=[match])
+
     def options(self, **kw):
         """ Setup OPTION clause for query."""
         qs = self._clone()
@@ -53,6 +58,9 @@ class SphinxManager(models.Manager):
 
     def options(self, **kw):
         return self.get_query_set().options(**kw)
+
+    def match(self, expression):
+        return self.get_query_set().match(expression)
 
 
 class SphinxField(models.TextField):
