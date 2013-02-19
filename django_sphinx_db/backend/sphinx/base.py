@@ -9,6 +9,11 @@ class SphinxOperations(MySQLDatabaseOperations):
     def fulltext_search_sql(self, field_name):
         return 'MATCH (%s)'
 
+    def quote_name(self, name):
+        """ Disable backtick field escaping, for support of sphinx fields
+        started with @-sign."""
+        return name
+
 
 class SphinxCreation(MySQLDatabaseCreation):
     def create_test_db(self, verbosity=1, autoclobber=False):
