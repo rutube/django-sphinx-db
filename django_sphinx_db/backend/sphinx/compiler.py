@@ -2,6 +2,7 @@ from django.db.models.sql import compiler
 from django.db.models.sql.where import WhereNode
 from django.db.models.sql.where import EmptyShortCircuit, EmptyResultSet
 from django.db.models.sql.expressions import SQLEvaluator
+import re
 
 
 class SphinxWhereNode(WhereNode):
@@ -65,6 +66,16 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         # This is to remove the `` backticks from identifiers.
         # http://sphinxsearch.com/bugs/view.php?id=1150
         return name
+
+    def as_sql(self, with_limits=True, with_col_aliases=False):
+        """ Modifying final QSL query."""
+        sql, args = super(SphinxQLCompiler, self).as_sql(with_limits,
+                                                         with_col_aliases)
+        # removing unsupported OFFSET clause
+        # replacing it with LIMIT <limit>, <offset>
+        sql = re.sub(r' OFFSET ([\d]+)$', ', \\1', sql)
+        return sql, args
+
 
 # Set SQLCompiler appropriately, so queries will use the correct compiler.
 SQLCompiler = SphinxQLCompiler
