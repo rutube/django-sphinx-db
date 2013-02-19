@@ -87,6 +87,13 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         # removing unsupported OFFSET clause
         # replacing it with LIMIT <limit>, <offset>
         sql = re.sub(r' OFFSET ([\d]+)$', ', \\1', sql)
+
+        # adding sphinx OPTION clause
+        # TODO: syntax check for option values is not performed
+        options = getattr(self.query, 'options', None)
+        if options:
+            sql += ' OPTION %s' % ', '.join(
+                ["%s=%s" % i for i in options.items()]) or ''
         return sql, args
 
 

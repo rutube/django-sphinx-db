@@ -24,6 +24,20 @@ class SphinxQuerySet(QuerySet):
         # never another configured database.
         return self._clone()
 
+    def options(self, **kw):
+        """ Setup OPTION clause for query."""
+        qs = self._clone()
+        qs.query.options = kw
+        return qs
+
+    def _clone(self, klass=None, setup=False, **kwargs):
+        """ Add support of cloning self.query.options."""
+        result = super(SphinxQuerySet, self)._clone(klass, setup, **kwargs)
+        options = getattr(self.query, 'options', None)
+        if options:
+            result.query.options = options
+        return result
+
 
 class SphinxManager(models.Manager):
     use_for_related_fields = True
@@ -37,10 +51,12 @@ class SphinxManager(models.Manager):
                                 if isinstance(field, SphinxField)]
         return SphinxQuerySet(self.model).defer(*sphinx_fields)
 
+    def options(self, **kw):
+        return self.get_query_set().options(**kw)
+
 
 class SphinxField(models.TextField):
     pass
-
 
 class SphinxModel(models.Model):
     class Meta:
