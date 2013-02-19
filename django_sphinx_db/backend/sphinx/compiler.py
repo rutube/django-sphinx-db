@@ -67,6 +67,19 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         # http://sphinxsearch.com/bugs/view.php?id=1150
         return name
 
+    def get_ordering(self):
+        """ Remove index name (model.Meta.db_table) from ORDER_BY clause."""
+        result, group_by = super(SphinxQLCompiler, self).get_ordering()
+        func = lambda name: name.split('.', 1)[-1]
+        # processing result ('idx.field1', 'idx.field2')
+        result = map(func, result)
+        # processing group_by tuples: (('idx.field1', []), ('idx.field2', []))
+        group_by = map(lambda t: (func(t[0]),) + t[1:], group_by)
+        # TODO: process self.query.ordering_aliases
+        # self.query.ordering_aliases is also set by parent get_ordering()
+        # method, and it also may contain db_table name.
+        return result, group_by
+
     def as_sql(self, with_limits=True, with_col_aliases=False):
         """ Modifying final QSL query."""
         sql, args = super(SphinxQLCompiler, self).as_sql(with_limits,
