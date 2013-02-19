@@ -29,6 +29,19 @@ class SphinxQuerySet(QuerySet):
         match = "MATCH('%s')" % (expression,)
         return qs.extra(where=[match])
 
+    def notequal(self, **kw):
+        """ Support for <> term, NOT(@id=value) doesn't work."""
+        qs = self._clone()
+        where = []
+        for field_name, value in kw.items():
+            field = self.model._meta.get_field(field_name)
+            if type(field) is SphinxField:
+                col = '@%s' % field.attname
+            else:
+                col = field.db_column
+            where.append('%s <> %s' % (col, field.get_prep_value(value)))
+        return qs.extra(where=where)
+
     def options(self, **kw):
         """ Setup OPTION clause for query."""
         qs = self._clone()
@@ -61,6 +74,9 @@ class SphinxManager(models.Manager):
 
     def match(self, expression):
         return self.get_query_set().match(expression)
+
+    def notequal(self, **kw):
+        return self.get_query_set().notequal(**kw)
 
 
 class SphinxField(models.TextField):
