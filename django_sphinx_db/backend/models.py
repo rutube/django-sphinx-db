@@ -50,6 +50,7 @@ class SphinxQuerySet(QuerySet):
 
     def group_by(self, *args):
         qs = self._clone()
+        qs.query.group_by = qs.query.group_by or []
         qs.query.group_by.extend([a for a in args
                                   if a not in qs.query.group_by])
         return qs
