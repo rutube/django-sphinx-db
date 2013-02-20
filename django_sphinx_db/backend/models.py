@@ -48,7 +48,7 @@ class SphinxQuerySet(QuerySet):
                 continue
         if match_args:
             match_expression = ' '.join(match_args)
-            return self.match(match_expression).filter(self, *args, **kwargs)
+            return self.match(match_expression).filter(*args, **kwargs)
         return super(SphinxQuerySet, self).filter(*args, **kwargs)
 
     def match(self, expression):
