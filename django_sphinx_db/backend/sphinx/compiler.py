@@ -88,6 +88,9 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         # replacing it with LIMIT <limit>, <offset>
         sql = re.sub(r' OFFSET ([\d]+)$', ', \\1', sql)
 
+        # removing brackets from GROUP_BY clause
+        sql = re.sub(r'GROUP BY \(([^\)]*)\)', 'GROUP BY \\1', sql)
+
         # adding sphinx OPTION clause
         # TODO: syntax check for option values is not performed
         options = getattr(self.query, 'options', None)

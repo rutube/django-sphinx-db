@@ -48,6 +48,12 @@ class SphinxQuerySet(QuerySet):
         qs.query.options = kw
         return qs
 
+    def group_by(self, *args):
+        qs = self._clone()
+        qs.query.group_by.extend([a for a in args
+                                  if a not in qs.query.group_by])
+        return qs
+
     def _clone(self, klass=None, setup=False, **kwargs):
         """ Add support of cloning self.query.options."""
         result = super(SphinxQuerySet, self)._clone(klass, setup, **kwargs)
@@ -77,6 +83,9 @@ class SphinxManager(models.Manager):
 
     def notequal(self, **kw):
         return self.get_query_set().notequal(**kw)
+
+    def group_by(self, *args):
+        return self.get_query_set().group_by(*args)
 
 
 class SphinxField(models.TextField):
