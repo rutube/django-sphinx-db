@@ -1,7 +1,14 @@
+import re
 from django.db import models
 from django.db.models.sql import Query
 from django.db.models.query import QuerySet
 from django_sphinx_db.backend.sphinx.compiler import SphinxWhereNode
+
+
+def sphinx_escape(value):
+    if type(value) not in (str, unicode):
+        return value
+    return re.sub(r"([=\(\)|\-!@~\"&/\\\^\$\=])", r"\\\\\1", value)
 
 
 class SphinxQuery(Query):
@@ -24,6 +31,26 @@ class SphinxQuerySet(QuerySet):
         # never another configured database.
         return self._clone()
 
+    def filter(self, *args, **kwargs):
+        """ String attributes can't be compared with = term, so they are
+        replaced with MATCH('@field_name "value"')."""
+        match_args = []
+        for field_name, value in kwargs.items():
+            try:
+                if field_name.endswith('__exact'):
+                    field_name = field_name[:-7]
+                field = self.model._meta.get_field(field_name)
+                if isinstance(field, models.CharField):
+                    match_args.append(
+                        '@%s "%s"' % (field_name, sphinx_escape(value)))
+                    del kwargs[field_name]
+            except models.FieldDoesNotExist:
+                continue
+        if match_args:
+            match_expression = ' '.join(match_args)
+            return self.match(match_expression).filter(self, *args, **kwargs)
+        return super(SphinxQuerySet, self).filter(*args, **kwargs)
+
     def match(self, expression):
         qs = self._clone()
         match = "MATCH('%s')" % (expression,)
@@ -39,7 +66,8 @@ class SphinxQuerySet(QuerySet):
                 col = '@%s' % field.attname
             else:
                 col = field.db_column
-            where.append('%s <> %s' % (col, field.get_prep_value(value)))
+            value = field.get_prep_value(sphinx_escape(value))
+            where.append('%s <> %s' % (col, value))
         return qs.extra(where=where)
 
     def options(self, **kw):
