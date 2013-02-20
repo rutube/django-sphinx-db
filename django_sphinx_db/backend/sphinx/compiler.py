@@ -85,8 +85,8 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         sql, args = super(SphinxQLCompiler, self).as_sql(with_limits,
                                                          with_col_aliases)
         # removing unsupported OFFSET clause
-        # replacing it with LIMIT <limit>, <offset>
-        sql = re.sub(r' OFFSET ([\d]+)$', ', \\1', sql)
+        # replacing it with LIMIT <offset>, <limit>
+        sql = re.sub(r'LIMIT ([\d]+) OFFSET ([\d]+)$', 'LIMIT \\2, \\1', sql)
 
         # removing brackets from GROUP_BY clause
         sql = re.sub(r'GROUP BY \(([^\)]*)\)', 'GROUP BY \\1', sql)
