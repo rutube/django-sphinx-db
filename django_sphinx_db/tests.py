@@ -30,7 +30,7 @@ class SphinxSearchTestRunner(DjangoTestSuiteRunner):
         pass
 
 
-class SimpleTest(TestCase):
+class BackendTestCase(TestCase):
 
     def _fixture_setup(self):
         """ Нет БД - нет фикстур."""
@@ -40,8 +40,20 @@ class SimpleTest(TestCase):
         """ Нет БД - нет фикстур."""
         pass
 
-    def testEscaping(self):
+    def testMatchEscaping(self):
         qs = TagsIndex.objects.match(sphinx_escape('~'))
+        result = list(qs)
+        query, params = qs.query.sql_with_params()
+        self.assertIn("MATCH('\\\\~')", query)
+
+    def testAndNodeWithMatch(self):
+        qs = TagsIndex.objects.match(sphinx_escape('~')).filter(id__gt=2)
+        result = list(qs)
+        query, params = qs.query.sql_with_params()
+        self.assertIn("MATCH('\\\\~')", query)
+
+    def testNotEqual(self):
+        qs = TagsIndex.objects.match(sphinx_escape('~')).notequal(id=4)
         result = list(qs)
         query, params = qs.query.sql_with_params()
         self.assertIn("MATCH('\\\\~')", query)

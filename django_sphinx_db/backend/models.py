@@ -1,8 +1,8 @@
 import re
 from django.db import models
-from django.db.models.sql import Query
+from django.db.models.sql import Query, AND
 from django.db.models.query import QuerySet
-from django_sphinx_db.backend.sphinx.compiler import SphinxWhereNode
+from django_sphinx_db.backend.sphinx.compiler import SphinxWhereNode, SphinxExtraWhere
 
 
 def sphinx_escape(value):
@@ -56,7 +56,8 @@ class SphinxQuerySet(QuerySet):
     def match(self, expression):
         qs = self._clone()
         match = "MATCH('%s')" % expression
-        return qs.extra(where=[match])
+        qs.query.where.add(SphinxExtraWhere([match], []), AND)
+        return qs
 
     def notequal(self, **kw):
         """ Support for <> term, NOT(@id=value) doesn't work."""
@@ -67,10 +68,11 @@ class SphinxQuerySet(QuerySet):
             if type(field) is SphinxField:
                 col = '@%s' % field.attname
             else:
-                col = field.db_column
+                col = field.db_column or field.attname
             value = field.get_prep_value(sphinx_escape(value))
             where.append('%s <> %s' % (col, value))
-        return qs.extra(where=where)
+        qs.query.where.add(SphinxExtraWhere(where, []), AND)
+        return qs
 
     def options(self, **kw):
         """ Setup OPTION clause for query."""

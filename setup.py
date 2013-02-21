@@ -5,7 +5,7 @@ from distutils.core import setup
 
 name = 'django-sphinx-db'
 version = '0.1'
-release = '9'
+release = '10'
 versrel = version + '-' + release
 readme = os.path.join(os.path.dirname(__file__), 'README.rst')
 download_url = 'https://github.com/downloads/rutube/django-sphinx-db' \

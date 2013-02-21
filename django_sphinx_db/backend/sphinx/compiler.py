@@ -1,8 +1,15 @@
 from django.db.models.sql import compiler
-from django.db.models.sql.where import WhereNode
+from django.db.models.sql.where import WhereNode, ExtraWhere
 from django.db.models.sql.where import EmptyShortCircuit, EmptyResultSet
 from django.db.models.sql.expressions import SQLEvaluator
 import re
+
+
+class SphinxExtraWhere(ExtraWhere):
+
+    def as_sql(self, qn=None, connection=None):
+        sqls = ["%s" % sql for sql in self.sqls]
+        return " AND ".join(sqls), tuple(self.params or ())
 
 
 class SphinxWhereNode(WhereNode):
