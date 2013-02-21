@@ -25,11 +25,11 @@ setup(
     download_url = download_url,
     license = 'MIT',
     packages = [
-        "django-sphinx-db",
-        "django-sphinx-db.backend",
-        "django-sphinx-db.backend.sphinx",
-        "django-sphinx-db.management",
-        "django-sphinx-db.management.commands",
+        "django_sphinx_db",
+        "django_sphinx_db.backend",
+        "django_sphinx_db.backend.sphinx",
+        "django_sphinx_db.management",
+        "django_sphinx_db.management.commands",
     ],
     classifiers = (
           'Development Status :: 4 - Beta',
