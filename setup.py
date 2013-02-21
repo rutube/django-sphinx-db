@@ -3,9 +3,9 @@
 import os
 from distutils.core import setup
 
-name = 'django_sphinx_db'
+name = 'django-sphinx-db'
 version = '0.1'
-release = '8'
+release = '9'
 versrel = version + '-' + release
 readme = os.path.join(os.path.dirname(__file__), 'README.rst')
 download_url = 'https://github.com/downloads/rutube/django-sphinx-db' \
@@ -25,11 +25,11 @@ setup(
     download_url = download_url,
     license = 'MIT',
     packages = [
-        "django_sphinx_db",
-        "django_sphinx_db.backend",
-        "django_sphinx_db.backend.sphinx",
-        "django_sphinx_db.management",
-        "django_sphinx_db.management.commands",
+        "django-sphinx-db",
+        "django-sphinx-db.backend",
+        "django-sphinx-db.backend.sphinx",
+        "django-sphinx-db.management",
+        "django-sphinx-db.management.commands",
     ],
     classifiers = (
           'Development Status :: 4 - Beta',

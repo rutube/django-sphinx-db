@@ -8,8 +8,8 @@ from django_sphinx_db.backend.sphinx.compiler import SphinxWhereNode
 def sphinx_escape(value):
     if type(value) not in (str, unicode):
         return value
-    value = re.sub(r"([=<>\(\)|\-!@~\"&/\\\^\$\=])", r"\\\1", value)
-    value = re.sub(r'(SENTENCE|PARAGRAPH)', r"\\\1", value, flags=re.I)
+    value = re.sub(r"([=<>\(\)|\-!@~\"&/\\\^\$\=])", r"\\\\\1", value)
+    value = re.sub(r'(SENTENCE|PARAGRAPH)', r"\\\\\1", value, flags=re.I)
     return value
 
 
@@ -55,8 +55,8 @@ class SphinxQuerySet(QuerySet):
 
     def match(self, expression):
         qs = self._clone()
-        match = "MATCH(%s)"
-        return qs.extra(where=[match], params=[expression])
+        match = "MATCH('%s')" % expression
+        return qs.extra(where=[match])
 
     def notequal(self, **kw):
         """ Support for <> term, NOT(@id=value) doesn't work."""
