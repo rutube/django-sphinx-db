@@ -10,9 +10,16 @@ class SphinxOperations(MySQLDatabaseOperations):
         return 'MATCH (%s)'
 
     def quote_name(self, name):
-        """ Disable backtick field escaping, for support of sphinx fields
+        """
+        Disable backtick field escaping, for support of sphinx fields
         started with @-sign."""
         return name
+
+    def force_no_ordering(self):
+        """
+        Fix unsupported syntax "ORDER BY NULL"
+        """
+        return []
 
 
 class SphinxCreation(MySQLDatabaseCreation):
