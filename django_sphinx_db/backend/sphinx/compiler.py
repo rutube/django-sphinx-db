@@ -1,5 +1,5 @@
 from django.db.models.sql import compiler
-from django.db.models.sql.where import WhereNode, ExtraWhere
+from django.db.models.sql.where import WhereNode, ExtraWhere, AND
 from django.db.models.sql.where import EmptyShortCircuit, EmptyResultSet
 from django.db.models.sql.expressions import SQLEvaluator
 import re
@@ -65,7 +65,10 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         columns = super(SphinxQLCompiler, self).get_columns(*args, **kwargs)
         for i, column in enumerate(columns):
             if '.' in column:
-                columns[i] = column.partition('.')[2]
+                column = column.partition('.')[2]
+            # fix not accepted expression (weight()) AS w
+            columns[i] = re.sub(r"^\((.*)\) AS ([\w\d\_]+)$", '\\1 AS \\2',
+                                column)
         return columns
 
     def quote_name_unless_alias(self, name):
@@ -89,6 +92,11 @@ class SphinxQLCompiler(compiler.SQLCompiler):
 
     def as_sql(self, with_limits=True, with_col_aliases=False):
         """ Modifying final QSL query."""
+        match = getattr(self.query, 'match', None)
+        if match:
+            match = "MATCH('%s')" % ' '.join(expr for expr in match)
+            self.query.where.add(SphinxExtraWhere([match], []), AND)
+
         sql, args = super(SphinxQLCompiler, self).as_sql(with_limits,
                                                          with_col_aliases)
         # removing unsupported OFFSET clause

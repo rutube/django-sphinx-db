@@ -55,8 +55,10 @@ class SphinxQuerySet(QuerySet):
 
     def match(self, expression):
         qs = self._clone()
-        match = "MATCH('%s')" % expression
-        qs.query.where.add(SphinxExtraWhere([match], []), AND)
+        try:
+            qs.query.match.add(expression)
+        except AttributeError:
+            qs.query.match = {expression}
         return qs
 
     def notequal(self, **kw):
@@ -77,7 +79,10 @@ class SphinxQuerySet(QuerySet):
     def options(self, **kw):
         """ Setup OPTION clause for query."""
         qs = self._clone()
-        qs.query.options = kw
+        try:
+            qs.query.options.update(kw)
+        except AttributeError:
+            qs.query.options = kw
         return qs
 
     def group_by(self, *args):
@@ -90,9 +95,10 @@ class SphinxQuerySet(QuerySet):
     def _clone(self, klass=None, setup=False, **kwargs):
         """ Add support of cloning self.query.options."""
         result = super(SphinxQuerySet, self)._clone(klass, setup, **kwargs)
-        options = getattr(self.query, 'options', None)
-        if options:
-            result.query.options = options
+        for attr_name in ('options', 'match'):
+            value = getattr(self.query, attr_name, None)
+            if value:
+                setattr(result.query, attr_name, value)
         return result
 
 
