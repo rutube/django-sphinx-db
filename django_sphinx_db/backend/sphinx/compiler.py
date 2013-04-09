@@ -112,6 +112,8 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         if options:
             sql += ' OPTION %s' % ', '.join(
                 ["%s=%s" % i for i in options.items()]) or ''
+        # percents, added by raw formatting queries, escaped as %%
+        sql = re.sub(r'(%[^s])', '%%\1', sql)
         return sql, args
 
 

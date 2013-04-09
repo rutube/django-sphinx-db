@@ -8,8 +8,8 @@ from django_sphinx_db.backend.sphinx.compiler import SphinxWhereNode, SphinxExtr
 def sphinx_escape(value):
     if type(value) not in (str, unicode):
         return value
-    value = re.sub(r"([=<>\(\)|\-!@~\"&/\\\^\$\=])", r"\\\\\1", value)
-    value = re.sub(r'(SENTENCE|PARAGRAPH)', r"\\\\\1", value, flags=re.I)
+    value = re.sub(r"([=<>()|!@~&/^$\-\"\\])", r'\\\\1', value)
+    value = re.sub(r'(SENTENCE|PARAGRAPH)', r'\\\\1', value, flags=re.I)
     return value
 
 
