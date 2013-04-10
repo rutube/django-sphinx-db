@@ -90,6 +90,11 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         # method, and it also may contain db_table name.
         return result, group_by
 
+    def get_grouping(self, ordering_group_by):
+        result, params = super(SphinxQLCompiler, self).get_grouping(ordering_group_by)
+        return [g.strip('()') for g in result], params
+
+
     def as_sql(self, with_limits=True, with_col_aliases=False):
         """ Modifying final QSL query."""
         match = getattr(self.query, 'match', None)

@@ -88,8 +88,11 @@ class SphinxQuerySet(QuerySet):
     def group_by(self, *args):
         qs = self._clone()
         qs.query.group_by = qs.query.group_by or []
-        qs.query.group_by.extend([a for a in args
-                                  if a not in qs.query.group_by])
+        for field_name in args:
+            field = self.model._meta.get_field_by_name(field_name)[0]
+            qs.query.group_by.append(field.column)
+        # qs.query.group_by.extend([a for a in args
+        #                           if a not in qs.query.group_by])
         return qs
 
     def _clone(self, klass=None, setup=False, **kwargs):
