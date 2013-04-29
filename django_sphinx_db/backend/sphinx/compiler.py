@@ -65,6 +65,8 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         columns = super(SphinxQLCompiler, self).get_columns(*args, **kwargs)
         db_table = self.query.model._meta.db_table
         for i, column in enumerate(columns):
+            # TODO: возможны колонки из других таблиц кроме основной,
+            # необходимо это все учитывать.
             if column.startswith(db_table + '.'):
                 column = column.partition('.')[2]
             # fix not accepted expression (weight()) AS w
