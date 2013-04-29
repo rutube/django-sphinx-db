@@ -1,3 +1,5 @@
+# coding: utf-8
+
 from django.db.models.sql import compiler
 from django.db.models.sql.where import WhereNode, ExtraWhere, AND
 from django.db.models.sql.where import EmptyShortCircuit, EmptyResultSet
