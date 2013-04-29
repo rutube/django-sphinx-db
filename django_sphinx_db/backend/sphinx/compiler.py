@@ -63,8 +63,9 @@ class SphinxWhereNode(WhereNode):
 class SphinxQLCompiler(compiler.SQLCompiler):
     def get_columns(self, *args, **kwargs):
         columns = super(SphinxQLCompiler, self).get_columns(*args, **kwargs)
+        db_table = self.query.model._meta.db_table
         for i, column in enumerate(columns):
-            if '.' in column:
+            if column.startswith(db_table + '.'):
                 column = column.partition('.')[2]
             # fix not accepted expression (weight()) AS w
             columns[i] = re.sub(r"^\((.*)\) AS ([\w\d\_]+)$", '\\1 AS \\2',
