@@ -54,6 +54,7 @@ class SphinxQuerySet(QuerySet):
         return super(SphinxQuerySet, self).filter(*args, **kwargs)
 
     def match(self, expression):
+        """ Enables full-text searching in sphinx (MATCH expression)."""
         qs = self._clone()
         try:
             qs.query.match.add(expression)
@@ -85,20 +86,34 @@ class SphinxQuerySet(QuerySet):
             qs.query.options = kw
         return qs
 
-    def group_by(self, *args):
+    def group_by(self, *args, **kw):
+        """ Adds GROUP BY clause to query.
+
+        *args: field names or aliases to group by
+        keyword group_limit: (GROUP <N> BY)
+            int, limits number of group member to N
+        keyword group_order_by: (WITHIN GROUP ORDER BY)
+            string list, sets sort order within group
+            in example: group_order_by=('-my_weight', 'title')
+        """
+        group_limit = kw.get('group_limit', 0)
+        group_order_by = kw.get('group_order_by', ())
         qs = self._clone()
         qs.query.group_by = qs.query.group_by or []
         for field_name in args:
-            field = self.model._meta.get_field_by_name(field_name)[0]
-            qs.query.group_by.append(field.column)
-        # qs.query.group_by.extend([a for a in args
-        #                           if a not in qs.query.group_by])
+            if field_name not in qs.query.extra_select:
+                field = self.model._meta.get_field_by_name(field_name)[0]
+                qs.query.group_by.append(field.column)
+            else:
+                qs.query.group_by.append(field_name)
+        qs.query.group_limit = group_limit
+        qs.query.group_order_by = group_order_by
         return qs
 
     def _clone(self, klass=None, setup=False, **kwargs):
         """ Add support of cloning self.query.options."""
         result = super(SphinxQuerySet, self)._clone(klass, setup, **kwargs)
-        for attr_name in ('options', 'match'):
+        for attr_name in ('options', 'match', 'group_limit', 'group_order_by'):
             value = getattr(self.query, attr_name, None)
             if value:
                 setattr(result.query, attr_name, value)
@@ -114,7 +129,7 @@ class SphinxManager(models.Manager):
         # TODO: we probably need a way to keep these from being loaded
         # later if the attr is accessed.
         sphinx_fields = [field.name for field in self.model._meta.fields
-                                if isinstance(field, SphinxField)]
+                         if isinstance(field, SphinxField)]
         return SphinxQuerySet(self.model).defer(*sphinx_fields)
 
     def options(self, **kw):
@@ -126,12 +141,13 @@ class SphinxManager(models.Manager):
     def notequal(self, **kw):
         return self.get_query_set().notequal(**kw)
 
-    def group_by(self, *args):
-        return self.get_query_set().group_by(*args)
+    def group_by(self, *args, **kw):
+        return self.get_query_set().group_by(*args, **kw)
 
 
 class SphinxField(models.TextField):
     pass
+
 
 class SphinxModel(models.Model):
     class Meta:

@@ -1,6 +1,8 @@
 # coding: utf-8
 
 from django.db.models.sql import compiler
+from django.db.models.sql.query import get_order_dir, ORDER_DIR
+
 from django.db.models.sql.where import WhereNode, ExtraWhere, AND
 from django.db.models.sql.where import EmptyShortCircuit, EmptyResultSet
 from django.db.models.sql.expressions import SQLEvaluator
@@ -18,17 +20,6 @@ class SphinxWhereNode(WhereNode):
     def sql_for_columns(self, data, qn, connection):
         table_alias, name, db_type = data
         return connection.ops.field_cast_sql(db_type) % name
-
-    def as_sql(self, qn, connection):
-        # TODO: remove this when no longer needed.
-        # This is to remove the parenthesis from where clauses.
-        # http://sphinxsearch.com/bugs/view.php?id=1150
-        sql, params = super(SphinxWhereNode, self).as_sql(qn, connection)
-        if sql and sql[0] == '(' and sql[-1] == ')':
-            # Trim leading and trailing parenthesis:
-            sql = sql[1:]
-            sql = sql[:-1]
-        return sql, params
 
     def make_atom(self, child, qn, connection):
         """
@@ -67,41 +58,59 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         columns = super(SphinxQLCompiler, self).get_columns(*args, **kwargs)
         db_table = self.query.model._meta.db_table
         for i, column in enumerate(columns):
-            # TODO: возможны колонки из других таблиц кроме основной,
-            # необходимо это все учитывать.
             if column.startswith(db_table + '.'):
                 column = column.partition('.')[2]
+            # TODO: remove if this code is not used
             # fix not accepted expression (weight()) AS w
-            columns[i] = re.sub(r"^\((.*)\) AS ([\w\d\_]+)$", '\\1 AS \\2',
-                                column)
+            #columns[i] = re.sub(r"^\((.*)\) AS ([\w\d\_]+)$", '\\1 AS \\2',
+            #                    column)
+            columns[i] = column
         return columns
 
     def quote_name_unless_alias(self, name):
         # TODO: remove this when no longer needed.
         # This is to remove the `` backticks from identifiers.
         # http://sphinxsearch.com/bugs/view.php?id=1150
+        # while bug is closed, () and `` together still cause syntax error
         return name
 
     def get_ordering(self):
         """ Remove index name (model.Meta.db_table) from ORDER_BY clause."""
         result, group_by = super(SphinxQLCompiler, self).get_ordering()
-        func = lambda name: name.split('.', 1)[-1]
+
+        # excluding from ordering_group_by items added from "extra_select"
+        exclude = {g[0] for g in self.query.extra_select.values()}
+        group_by = [g for g in group_by if g[0] not in exclude]
+
         # processing result ('idx.field1', 'idx.field2')
+        func = lambda name: name.split('.', 1)[-1]
         result = map(func, result)
+
         # processing group_by tuples: (('idx.field1', []), ('idx.field2', []))
         group_by = map(lambda t: (func(t[0]),) + t[1:], group_by)
+
         # TODO: process self.query.ordering_aliases
         # self.query.ordering_aliases is also set by parent get_ordering()
         # method, and it also may contain db_table name.
         return result, group_by
 
     def get_grouping(self, ordering_group_by):
-        result, params = super(SphinxQLCompiler, self).get_grouping(ordering_group_by)
-        return [g.strip('()') for g in result], params
+        result, params = super(SphinxQLCompiler, self).get_grouping(
+            ordering_group_by)
 
+        # removing parentheses from group by fields
+        for i in range(len(result)):
+            g = result[i]
+            if g[0] == '(' and g[-1] == ')':
+                result[i] = g[1:-1]
+
+        # excluding from ordering_group_by items added from "extra_select"
+        exclude = {g[0] for g in self.query.extra_select.values()}
+        result = [g for g in result if g not in exclude]
+        return result, params
 
     def as_sql(self, with_limits=True, with_col_aliases=False):
-        """ Modifying final QSL query."""
+        """ Patching final SQL query."""
         match = getattr(self.query, 'match', None)
         if match:
             match = "MATCH('%s')" % ' '.join(expr for expr in match)
@@ -113,8 +122,18 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         # replacing it with LIMIT <offset>, <limit>
         sql = re.sub(r'LIMIT ([\d]+) OFFSET ([\d]+)$', 'LIMIT \\2, \\1', sql)
 
-        # removing brackets from GROUP_BY clause
-        sql = re.sub(r'GROUP BY \(([^\)]*)\)', 'GROUP BY \\1', sql)
+        # patching GROUP BY clause
+        group_by_limit = getattr(self.query, 'group_by_limit', '')
+        group_by_ordering = self.get_group_ordering()
+        if group_by_limit:
+            # add GROUP <N> BY expression
+            group_by = 'GROUP %s BY \\1' % group_by_limit
+        else:
+            group_by = 'GROUP BY \\1'
+        if group_by_ordering:
+            # add WITHIN GROUP ORDER BY expression
+            group_by += group_by_ordering
+        sql = re.sub(r'GROUP BY (([\w\d_]+)(, [\w\d_]+)*)', group_by, sql)
 
         # adding sphinx OPTION clause
         # TODO: syntax check for option values is not performed
@@ -122,10 +141,21 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         if options:
             sql += ' OPTION %s' % ', '.join(
                 ["%s=%s" % i for i in options.items()]) or ''
+
         # percents, added by raw formatting queries, escaped as %%
         sql = re.sub(r'(%[^s])', '%%\1', sql)
         return sql, args
 
+    def get_group_ordering(self):
+        group_order_by = getattr(self.query, 'group_order_by', ())
+        asc, desc = ORDER_DIR['ASC']
+        if not group_order_by:
+            return ''
+        result = []
+        for order_by in group_order_by:
+            col, order = get_order_dir(order_by, asc)
+            result.append("%s %s" % (col, order))
+        return " WITHIN GROUP ORDER BY " + ", ".join(result)
 
 # Set SQLCompiler appropriately, so queries will use the correct compiler.
 SQLCompiler = SphinxQLCompiler
