@@ -1,4 +1,5 @@
 # coding: utf-8
+import django
 
 from django.db.models.sql import compiler
 from django.db.models.sql.query import get_order_dir, ORDER_DIR
@@ -94,9 +95,12 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         # method, and it also may contain db_table name.
         return result, group_by
 
-    def get_grouping(self, ordering_group_by):
-        result, params = super(SphinxQLCompiler, self).get_grouping(
-            ordering_group_by)
+    def get_grouping(self, ordering_group_by=None):
+        if django.VERSION >= (1, 5, 0, 'final', 0):
+            result, params = super(SphinxQLCompiler, self).get_grouping(
+                ordering_group_by)
+        else:
+            result, params = super(SphinxQLCompiler, self).get_grouping()
 
         # removing parentheses from group by fields
         for i in range(len(result)):
