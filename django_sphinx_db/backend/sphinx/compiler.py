@@ -61,11 +61,9 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         for i, column in enumerate(columns):
             if column.startswith(db_table + '.'):
                 column = column.partition('.')[2]
-            # TODO: remove if this code is not used
-            # fix not accepted expression (weight()) AS w
-            #columns[i] = re.sub(r"^\((.*)\) AS ([\w\d\_]+)$", '\\1 AS \\2',
-            #                    column)
-            columns[i] = column
+            # fix not accepted expression (bool(value)) AS v
+            columns[i] = re.sub(r"^\((.*)\) AS ([\w\d\_]+)$", '\\1 AS \\2',
+                                column)
         return columns
 
     def quote_name_unless_alias(self, name):
