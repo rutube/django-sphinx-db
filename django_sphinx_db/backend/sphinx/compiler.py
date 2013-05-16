@@ -125,11 +125,11 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         sql = re.sub(r'LIMIT ([\d]+) OFFSET ([\d]+)$', 'LIMIT \\2, \\1', sql)
 
         # patching GROUP BY clause
-        group_by_limit = getattr(self.query, 'group_by_limit', '')
+        group_limit = getattr(self.query, 'group_limit', '')
         group_by_ordering = self.get_group_ordering()
-        if group_by_limit:
+        if group_limit:
             # add GROUP <N> BY expression
-            group_by = 'GROUP %s BY \\1' % group_by_limit
+            group_by = 'GROUP %s BY \\1' % group_limit
         else:
             group_by = 'GROUP BY \\1'
         if group_by_ordering:
