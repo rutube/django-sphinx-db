@@ -1,5 +1,6 @@
 import re
-from django.db import models
+from django.conf import settings
+from django.db import models, connections
 from django.db.models.sql import Query, AND
 from django.db.models.query import QuerySet
 from django_sphinx_db.backend.sphinx.compiler import SphinxWhereNode, SphinxExtraWhere
@@ -20,6 +21,10 @@ class SphinxQuery(Query):
 
 
 class SphinxQuerySet(QuerySet):
+
+    _clonable = ('options', 'match', 'group_limit', 'group_order_by',
+                 'with_meta')
+
     def __init__(self, model, **kwargs):
         kwargs.setdefault('query', SphinxQuery(model))
         super(SphinxQuerySet, self).__init__(model, **kwargs)
@@ -32,6 +37,12 @@ class SphinxQuerySet(QuerySet):
         # but with Sphinx, we want all related queries to flow to Sphinx,
         # never another configured database.
         return self._clone()
+
+    def with_meta(self):
+        """ Allows to execute SHOW META immediately after main query."""
+        clone = self._clone()
+        setattr(clone.query, 'with_meta', True)
+        return clone
 
     def filter(self, *args, **kwargs):
         """ String attributes can't be compared with = term, so they are
@@ -113,11 +124,24 @@ class SphinxQuerySet(QuerySet):
     def _clone(self, klass=None, setup=False, **kwargs):
         """ Add support of cloning self.query.options."""
         result = super(SphinxQuerySet, self)._clone(klass, setup, **kwargs)
-        for attr_name in ('options', 'match', 'group_limit', 'group_order_by'):
+        for attr_name in self._clonable:
             value = getattr(self.query, attr_name, None)
             if value:
                 setattr(result.query, attr_name, value)
         return result
+
+    def iterator(self):
+        for row in super(SphinxQuerySet, self).iterator():
+            yield row
+        if getattr(self.query, 'with_meta', False):
+            c = connections[settings.SPHINX_DATABASE_NAME].cursor()
+            try:
+                c.execute("SHOW META")
+                self.meta = dict([c.fetchone()])
+            except UnicodeDecodeError:
+                self.meta = {}
+            finally:
+                c.close()
 
 
 class SphinxManager(models.Manager):
