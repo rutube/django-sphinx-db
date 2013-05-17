@@ -15,15 +15,23 @@ def sphinx_escape(value):
 
 
 class SphinxQuery(Query):
+    _clonable = ('options', 'match', 'group_limit', 'group_order_by',
+                 'with_meta')
+
     def __init__(self, *args, **kwargs):
         kwargs.setdefault('where', SphinxWhereNode)
         super(SphinxQuery, self).__init__(*args, **kwargs)
 
+    def clone(self, klass=None, memo=None, **kwargs):
+        query = super(SphinxQuery, self).clone(klass=None, memo=None, **kwargs)
+        for attr_name in self._clonable:
+            value = getattr(self, attr_name, None)
+            if value:
+                setattr(query, attr_name, value)
+        return query
+
 
 class SphinxQuerySet(QuerySet):
-
-    _clonable = ('options', 'match', 'group_limit', 'group_order_by',
-                 'with_meta')
 
     def __init__(self, model, **kwargs):
         kwargs.setdefault('query', SphinxQuery(model))
@@ -124,10 +132,7 @@ class SphinxQuerySet(QuerySet):
     def _clone(self, klass=None, setup=False, **kwargs):
         """ Add support of cloning self.query.options."""
         result = super(SphinxQuerySet, self)._clone(klass, setup, **kwargs)
-        for attr_name in self._clonable:
-            value = getattr(self.query, attr_name, None)
-            if value:
-                setattr(result.query, attr_name, value)
+
         return result
 
     def iterator(self):
