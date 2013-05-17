@@ -120,6 +120,8 @@ class SphinxQLCompiler(compiler.SQLCompiler):
 
         sql, args = super(SphinxQLCompiler, self).as_sql(with_limits,
                                                          with_col_aliases)
+        if (sql, args) == ('', ()):
+            return sql, args
         # removing unsupported OFFSET clause
         # replacing it with LIMIT <offset>, <limit>
         sql = re.sub(r'LIMIT ([\d]+) OFFSET ([\d]+)$', 'LIMIT \\2, \\1', sql)
