@@ -8,6 +8,7 @@ from django.db.models.sql.where import WhereNode, ExtraWhere, AND
 from django.db.models.sql.where import EmptyShortCircuit, EmptyResultSet
 from django.db.models.sql.expressions import SQLEvaluator
 import re
+from django.utils.datastructures import SortedDict
 
 
 class SphinxExtraWhere(ExtraWhere):
@@ -94,21 +95,20 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         return result, group_by
 
     def get_grouping(self, ordering_group_by=None):
+        # excluding from ordering_group_by items added from "extra_select"
+        extra = self.query.extra
+        self.query.extra = SortedDict()
         if django.VERSION >= (1, 5, 0, 'final', 0):
             result, params = super(SphinxQLCompiler, self).get_grouping(
                 ordering_group_by)
         else:
             result, params = super(SphinxQLCompiler, self).get_grouping()
-
+        self.query.extra = extra
         # removing parentheses from group by fields
         for i in range(len(result)):
             g = result[i]
             if g[0] == '(' and g[-1] == ')':
                 result[i] = g[1:-1]
-
-        # excluding from ordering_group_by items added from "extra_select"
-        exclude = {g[0] for g in self.query.extra_select.values()}
-        result = [g for g in result if g not in exclude]
         return result, params
 
     def as_sql(self, with_limits=True, with_col_aliases=False):
