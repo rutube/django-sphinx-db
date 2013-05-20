@@ -23,7 +23,7 @@ class SphinxQuery(Query):
         super(SphinxQuery, self).__init__(*args, **kwargs)
 
     def clone(self, klass=None, memo=None, **kwargs):
-        query = super(SphinxQuery, self).clone(klass=None, memo=None, **kwargs)
+        query = super(SphinxQuery, self).clone(klass=klass, memo=memo, **kwargs)
         for attr_name in self._clonable:
             value = getattr(self, attr_name, None)
             if value:
