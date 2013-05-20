@@ -63,7 +63,7 @@ class SphinxQuerySet(QuerySet):
                 field = self.model._meta.get_field(field_name)
                 if isinstance(field, models.CharField):
                     match_args.append(
-                        '@%s "%s"' % (field_name, sphinx_escape(value)))
+                        '@%s "%s"' % (field.db_column, sphinx_escape(value)))
                     del kwargs[field_name]
             except models.FieldDoesNotExist:
                 continue

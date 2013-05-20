@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='django-sphinx-db',
-    version='1.0.6',
+    version='1.0.7',
     packages=[
         "django_sphinx_db",
         "django_sphinx_db.backend",
