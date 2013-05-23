@@ -1,9 +1,11 @@
+from MySQLdb import OperationalError
 import re
 from django.conf import settings
-from django.db import models, connections
+from django.db import models, connections, connection
 from django.db.models.sql import Query, AND
 from django.db.models.query import QuerySet
-from django_sphinx_db.backend.sphinx.compiler import SphinxWhereNode, SphinxExtraWhere
+from django.utils.log import getLogger
+from django_sphinx_db.backend.sphinx.compiler import SphinxWhereNode, SphinxExtraWhere, SphinxQLCompiler
 
 
 def sphinx_escape(value):
@@ -12,6 +14,26 @@ def sphinx_escape(value):
     value = re.sub(r"([=<>()|!@~&/^$\-\"\\])", r'\\\1', value)
     value = re.sub(r'(SENTENCE|PARAGRAPH)', r'\\\1', value, flags=re.I)
     return value
+
+
+def immortal_generator(func):
+    def inner(*args, **kwargs):
+        try:
+            gen = func(*args, **kwargs)
+            for v in gen:
+                yield v
+        except OperationalError as e:
+            if getattr(settings, 'SPHINX_IMMORTAL', False):
+                logger = getLogger("django.db.backends.sphinx")
+                try:
+                    query = args[0].query
+                except (IndexError, AttributeError):
+                    query = "unknown"
+                logger.error(u"Sphinx search error at '{}'".format(query),
+                             exc_info=True)
+                return
+            raise
+    return inner
 
 
 class SphinxQuery(Query):
@@ -29,6 +51,11 @@ class SphinxQuery(Query):
             if value:
                 setattr(query, attr_name, value)
         return query
+
+    def __str__(self):
+        compiler = SphinxQLCompiler(self, connection, None)
+        query, params = compiler.as_sql()
+        return query % params
 
 
 class SphinxQuerySet(QuerySet):
@@ -135,18 +162,22 @@ class SphinxQuerySet(QuerySet):
 
         return result
 
+    def _fetch_meta(self):
+        c = connections[settings.SPHINX_DATABASE_NAME].cursor()
+        try:
+            c.execute("SHOW META")
+            self.meta = dict([c.fetchone()])
+        except UnicodeDecodeError:
+            self.meta = {}
+        finally:
+            c.close()
+
+    @immortal_generator
     def iterator(self):
         for row in super(SphinxQuerySet, self).iterator():
             yield row
         if getattr(self.query, 'with_meta', False):
-            c = connections[settings.SPHINX_DATABASE_NAME].cursor()
-            try:
-                c.execute("SHOW META")
-                self.meta = dict([c.fetchone()])
-            except UnicodeDecodeError:
-                self.meta = {}
-            finally:
-                c.close()
+            self._fetch_meta()
 
 
 class SphinxManager(models.Manager):
