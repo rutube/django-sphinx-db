@@ -87,7 +87,10 @@ class SphinxQuerySet(QuerySet):
             try:
                 if field_name.endswith('__exact'):
                     field_name = field_name[:-7]
-                field = self.model._meta.get_field(field_name)
+                if field_name == 'pk':
+                    field = self.model._meta.pk
+                else:
+                    field = self.model._meta.get_field(field_name)
                 if isinstance(field, models.CharField):
                     match_args.append(
                         '@%s "%s"' % (field.db_column, sphinx_escape(value)))
@@ -98,6 +101,9 @@ class SphinxQuerySet(QuerySet):
             match_expression = ' '.join(match_args)
             return self.match(match_expression).filter(*args, **kwargs)
         return super(SphinxQuerySet, self).filter(*args, **kwargs)
+
+    def get(self, *args, **kwargs):
+        return super(SphinxQuerySet, self).get(*args, **kwargs)
 
     def match(self, expression):
         """ Enables full-text searching in sphinx (MATCH expression)."""
@@ -203,6 +209,9 @@ class SphinxManager(models.Manager):
 
     def group_by(self, *args, **kw):
         return self.get_query_set().group_by(*args, **kw)
+
+    def get(self, *args, **kw):
+        return self.get_query_set().get(*args, **kw)
 
 
 class SphinxField(models.TextField):
