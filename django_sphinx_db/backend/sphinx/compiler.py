@@ -10,6 +10,9 @@ from django.db.models.sql.expressions import SQLEvaluator
 import re
 from django.utils.datastructures import SortedDict
 
+DJANGO15 = (1, 5, 0, 'alpha', 0)
+DJANGO16 = (1, 6, 0, 'alpha', 0)
+
 
 class SphinxExtraWhere(ExtraWhere):
 
@@ -19,9 +22,11 @@ class SphinxExtraWhere(ExtraWhere):
 
 
 class SphinxWhereNode(WhereNode):
-    def sql_for_columns(self, data, qn, connection):
+    def sql_for_columns(self, data, qn, connection, field_internal_type=None):
         table_alias, name, db_type = data
-        return connection.ops.field_cast_sql(db_type) % name
+        if django.get_version() < "1.6":
+            return connection.ops.field_cast_sql(db_type) % name
+        return connection.ops.field_cast_sql(db_type, field_internal_type) % name
 
     def make_atom(self, child, qn, connection):
         """
@@ -57,7 +62,11 @@ class SphinxWhereNode(WhereNode):
 
 class SphinxQLCompiler(compiler.SQLCompiler):
     def get_columns(self, *args, **kwargs):
-        columns = super(SphinxQLCompiler, self).get_columns(*args, **kwargs)
+        result = columns = super(SphinxQLCompiler, self).get_columns(*args, **kwargs)
+        if django.VERSION < DJANGO16:
+            columns = result
+        else:
+            columns = result[0]
         db_table = self.query.model._meta.db_table
         for i, column in enumerate(columns):
             if column.startswith(db_table + '.'):
@@ -65,7 +74,7 @@ class SphinxQLCompiler(compiler.SQLCompiler):
             # fix not accepted expression (bool(value)) AS v
             columns[i] = re.sub(r"^\((.*)\) AS ([\w\d\_]+)$", '\\1 AS \\2',
                                 column)
-        return columns
+        return result
 
     def quote_name_unless_alias(self, name):
         # TODO: remove this when no longer needed.
@@ -76,7 +85,11 @@ class SphinxQLCompiler(compiler.SQLCompiler):
 
     def get_ordering(self):
         """ Remove index name (model.Meta.db_table) from ORDER_BY clause."""
-        result, group_by = super(SphinxQLCompiler, self).get_ordering()
+        ordering = super(SphinxQLCompiler, self).get_ordering()
+        if django.VERSION < DJANGO16:
+            result, group_by = ordering
+        else:
+            result, params, group_by = ordering
 
         # excluding from ordering_group_by items added from "extra_select"
         exclude = {g[0] for g in self.query.extra_select.values()}
@@ -92,13 +105,19 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         # TODO: process self.query.ordering_aliases
         # self.query.ordering_aliases is also set by parent get_ordering()
         # method, and it also may contain db_table name.
-        return result, group_by
 
-    def get_grouping(self, ordering_group_by=None):
+        if django.VERSION < DJANGO16:
+            return result, group_by
+        return result, params, group_by
+
+    def get_grouping(self, having_group_by=None, ordering_group_by=None, ):
         # excluding from ordering_group_by items added from "extra_select"
         extra = self.query.extra
         self.query.extra = SortedDict()
-        if django.VERSION >= (1, 5, 0, 'final', 0):
+        if django.VERSION >= DJANGO16:
+            result, params = super(SphinxQLCompiler, self).get_grouping(
+                having_group_by, ordering_group_by)
+        elif django.VERSION >= DJANGO15:
             result, params = super(SphinxQLCompiler, self).get_grouping(
                 ordering_group_by)
         else:
@@ -181,7 +200,11 @@ class SQLUpdateCompiler(compiler.SQLUpdateCompiler, SphinxQLCompiler):
         # This is a bit ugly, we have to scrape information from the where clause
         # and put it into the field/values list. Sphinx will not accept an UPDATE
         # statement that includes full text data, only INSERT/REPLACE INTO.
-        lvalue, lookup_type, value_annot, params_or_value = self.query.where.children[0].children[0]
+        node = self.query.where.children[0]
+        if django.VERSION < DJANGO16:
+            lvalue, lookup_type, value_annot, params_or_value = node.children[0]
+        else:
+            lvalue, lookup_type, value_annot, params_or_value = node
         (table_name, column_name, column_type), val = lvalue.process(lookup_type, params_or_value, self.connection)
         fields, values, params = [column_name], ['%s'], [val[0]]
         # Now build the rest of the fields into our query.
