@@ -9,7 +9,7 @@ class TagsIndex(SphinxModel):
 
     class Meta:
         managed = False
-        db_table = 'squirell_tags_idx'
+        db_table = 'squirrel_tags_idx'
 
     id = models.IntegerField(primary_key=True)
     name = models.CharField(max_length=255)
@@ -40,20 +40,29 @@ class BackendTestCase(TestCase):
         """ Нет БД - нет фикстур."""
         pass
 
+    def setUp(self):
+        super(BackendTestCase, self).setUp()
+        self.escaped_match = r"MATCH('\^abc')"
+        self.query = "^abc"
+
+    def assertQueryExecuted(self, qs, substr=None):
+        list(qs)
+        query = str(qs.query)
+        substr = substr or self.escaped_match
+        self.assertIn(substr, query)
+
     def testMatchEscaping(self):
-        qs = TagsIndex.objects.match(sphinx_escape('~'))
-        result = list(qs)
-        query, params = qs.query.sql_with_params()
-        self.assertIn("MATCH('\\\\~')", query)
+        qs = TagsIndex.objects.match(sphinx_escape(self.query))
+        self.assertQueryExecuted(qs)
 
     def testAndNodeWithMatch(self):
-        qs = TagsIndex.objects.match(sphinx_escape('~')).filter(id__gt=2)
-        result = list(qs)
-        query, params = qs.query.sql_with_params()
-        self.assertIn("MATCH('\\\\~')", query)
+        qs = TagsIndex.objects.match(sphinx_escape(self.query)).filter(id__gt=2)
+        self.assertQueryExecuted(qs)
 
     def testNotEqual(self):
-        qs = TagsIndex.objects.match(sphinx_escape('~')).notequal(id=4)
-        result = list(qs)
-        query, params = qs.query.sql_with_params()
-        self.assertIn("MATCH('\\\\~')", query)
+        qs = TagsIndex.objects.match(sphinx_escape(self.query)).notequal(id=4)
+        self.assertQueryExecuted(qs)
+
+    def testFieldExactLookup(self):
+        qs = TagsIndex.objects.filter(name__exact="Котики")
+        self.assertQueryExecuted(qs, substr='@name "Котики"')

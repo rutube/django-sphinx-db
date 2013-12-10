@@ -83,18 +83,21 @@ class SphinxQuerySet(QuerySet):
         """ String attributes can't be compared with = term, so they are
         replaced with MATCH('@field_name "value"')."""
         match_args = []
-        for field_name, value in kwargs.items():
+        for lookup, value in kwargs.items():
             try:
-                if field_name.endswith('__exact'):
-                    field_name = field_name[:-7]
-                if field_name == 'pk':
+                if lookup.endswith('__exact'):
+                    field_name = lookup[:-7]
+                else:
+                    field_name = lookup
+                if lookup == 'pk':
                     field = self.model._meta.pk
                 else:
                     field = self.model._meta.get_field(field_name)
                 if isinstance(field, models.CharField):
+                    db_column = field.db_column or field.attname
                     match_args.append(
-                        '@%s "%s"' % (field.db_column, sphinx_escape(value)))
-                    del kwargs[field_name]
+                        '@%s "%s"' % (db_column, sphinx_escape(value)))
+                    del kwargs[lookup]
             except models.FieldDoesNotExist:
                 continue
         if match_args:
