@@ -55,7 +55,12 @@ class SphinxQuery(Query):
     def __str__(self):
         compiler = SphinxQLCompiler(self, connection, None)
         query, params = compiler.as_sql()
-        return query % params
+        params = tuple(map(lambda p: str(p).decode("utf-8"), params))
+
+        if type(query) is unicode:
+            return query.decode('utf-8') % params
+        query = query.decode('utf-8') % params
+        return query.encode('utf-8')
 
 
 class SphinxQuerySet(QuerySet):
@@ -79,42 +84,86 @@ class SphinxQuerySet(QuerySet):
         setattr(clone.query, 'with_meta', True)
         return clone
 
-    def filter(self, *args, **kwargs):
+    def _negate_expression(self, negate, lookup):
+        if isinstance(lookup, (tuple, list)):
+            result = []
+            for v in lookup:
+                result.append(self._negate_expression(negate, v))
+            return result
+        else:
+            if not lookup.startswith('"'):
+                lookup = '"%s"' % lookup
+            if negate:
+                lookup = '-%s' % lookup
+            return lookup
+
+
+    def _filter_or_exclude(self, negate, *args, **kwargs):
         """ String attributes can't be compared with = term, so they are
         replaced with MATCH('@field_name "value"')."""
-        match_args = []
+        match_kwargs = {}
         for lookup, value in kwargs.items():
             try:
-                if lookup.endswith('__exact'):
-                    field_name = lookup[:-7]
-                else:
-                    field_name = lookup
+                tokens = lookup.split('__')
+                field_name = tokens[0]
+                lookup_type = None
+                if len(tokens) == 2:
+                    lookup_type = tokens[1]
+                elif len(tokens) > 2:
+                    raise ValueError("Can't build correct lookup for %s" % lookup)
                 if lookup == 'pk':
                     field = self.model._meta.pk
                 else:
                     field = self.model._meta.get_field(field_name)
                 if isinstance(field, models.CharField):
-                    db_column = field.db_column or field.attname
-                    match_args.append(
-                        '@%s "%s"' % (db_column, sphinx_escape(value)))
+                    if lookup_type and lookup_type not in ('in', 'exact', 'startswith'):
+                        raise ValueError("Can't build correct lookup for %s" % lookup)
+                    if lookup_type == 'startswith':
+                        value = value + '*'
+                    field_name = field.attname
+                    match_kwargs.setdefault(field_name, set())
+                    sphinx_lookup = sphinx_escape(value)
+                    sphinx_expr = self._negate_expression(negate, sphinx_lookup)
+                    if isinstance(sphinx_expr, list):
+                        match_kwargs[field_name].update(sphinx_expr)
+                    else:
+                        match_kwargs[field_name].add(sphinx_expr)
                     del kwargs[lookup]
             except models.FieldDoesNotExist:
                 continue
-        if match_args:
-            match_expression = ' '.join(match_args)
-            return self.match(match_expression).filter(*args, **kwargs)
-        return super(SphinxQuerySet, self).filter(*args, **kwargs)
+        if match_kwargs:
+            return self.match(**match_kwargs)._filter_or_exclude(negate, *args, **kwargs)
+        return super(SphinxQuerySet, self)._filter_or_exclude(negate, *args, **kwargs)
 
     def get(self, *args, **kwargs):
         return super(SphinxQuerySet, self).get(*args, **kwargs)
 
-    def match(self, expression):
-        """ Enables full-text searching in sphinx (MATCH expression)."""
+    def match(self, *args, **kwargs):
+        """ Enables full-text searching in sphinx (MATCH expression).
+
+        qs.match('sphinx_expression_1', 'sphinx_expression_2')
+            compiles to
+        MATCH('sphinx_expression_1 sphinx_expression_2)
+
+        qs.match(field1='sphinx_loopup1',field2='sphinx_loopup2')
+            compiles to
+        MATCH('@field1 sphinx_lookup1 @field2 sphinx_lookup2')
+        """
         qs = self._clone()
-        try:
-            qs.query.match.add(expression)
-        except AttributeError:
-            qs.query.match = {expression}
+        if not hasattr(qs.query, 'match'):
+            qs.query.match = dict()
+        for expression in args:
+            qs.query.match.setdefault('*', set())
+            if isinstance(expression, (list, tuple)):
+                qs.query.match['*'].update(expression)
+            else:
+                qs.query.match['*'].add(expression)
+        for field, expression in kwargs.items():
+            qs.query.match.setdefault(field, set())
+            if isinstance(expression, (list, tuple, set)):
+                qs.query.match[field].update(expression)
+            else:
+                qs.query.match[field].add(expression)
         return qs
 
     def notequal(self, **kw):

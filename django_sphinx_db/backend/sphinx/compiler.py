@@ -130,13 +130,58 @@ class SphinxQLCompiler(compiler.SQLCompiler):
                 result[i] = g[1:-1]
         return result, params
 
+    def _serialize(self, values_list):
+        if isinstance(values_list, basestring):
+            return values_list
+        ensure_list = lambda s:  [s] if isinstance(s, basestring) else s
+        values_list = [item for s in values_list for item in ensure_list(s)]
+        positive_list = filter(lambda s: not s.startswith('-'), values_list)
+        negative_list = filter(lambda s: s.startswith('-'), values_list)
+        def quote(s):
+            if s.startswith('"'):
+                return s
+            negate = s.startswith('-')
+            if not negate:
+                return '"%s"' % s
+            s = s[1:]
+            if s.startswith('"'):
+                return '-%s' % s
+            return '-"%s"' % s
+        positive = "|".join(map(quote, positive_list))
+        negative = ' '.join(map(quote, negative_list))
+        return ('%s %s' % (positive, negative)).strip(' ')
+
     def as_sql(self, with_limits=True, with_col_aliases=False):
         """ Patching final SQL query."""
         match = getattr(self.query, 'match', None)
         if match:
-            match = "MATCH('%s')" % ' '.join(expr for expr in match)
-            self.query.where.add(SphinxExtraWhere([match], []), AND)
-
+            expression = []
+            all_field_expr = []
+            all_fields_lookup = match.get('*')
+            if all_fields_lookup:
+                if isinstance(all_fields_lookup, basestring):
+                    expression.append(all_fields_lookup)
+                    all_field_expr.append(all_fields_lookup)
+                else:
+                    for value in all_fields_lookup:
+                        value_str = self._serialize(value)
+                        expression.append(value_str)
+                        all_field_expr.append(value_str)
+            for sphinx_attr, lookup in match.items():
+                if sphinx_attr == '*':
+                    continue
+                field = self.query.model._meta.get_field(sphinx_attr)
+                db_column = field.db_column or field.attname
+                expression.append('@' + db_column)
+                if isinstance(lookup, basestring):
+                    lookup = all_field_expr + [lookup]
+                else:
+                    lookup.update(all_field_expr)
+                expression.append("(%s)" % self._serialize(lookup))
+            decode = lambda _: _.decode("utf-8") if type(_) is str else _
+            match_expr = u"MATCH('%s')" % u' '.join(map(decode, expression))
+            self.query.where.add(SphinxExtraWhere([match_expr], []), AND)
+        self.query.match = dict()
         sql, args = super(SphinxQLCompiler, self).as_sql(with_limits,
                                                          with_col_aliases)
         if (sql, args) == ('', ()):
@@ -167,7 +212,7 @@ class SphinxQLCompiler(compiler.SQLCompiler):
 
         # percents, added by raw formatting queries, escaped as %%
         sql = re.sub(r'(%[^s])', '%%\1', sql)
-        return sql, args
+        return sql.encode("utf-8"), args
 
     def get_group_ordering(self):
         group_order_by = getattr(self.query, 'group_order_by', ())

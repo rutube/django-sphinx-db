@@ -46,8 +46,8 @@ class BackendTestCase(TestCase):
         self.query = "^abc"
 
     def assertQueryExecuted(self, qs, substr=None):
-        list(qs)
         query = str(qs.query)
+        list(qs)
         substr = substr or self.escaped_match
         self.assertIn(substr, query)
 
@@ -65,4 +65,15 @@ class BackendTestCase(TestCase):
 
     def testFieldExactLookup(self):
         qs = TagsIndex.objects.filter(name__exact="Котики")
-        self.assertQueryExecuted(qs, substr='@name "Котики"')
+        self.assertQueryExecuted(qs, substr='@name ("Котики")')
+
+    def testCharFieldIn(self):
+        qs = TagsIndex.objects.filter(
+            name__in=("Шедевры рекламы", "Новость дня"), id__gt=44)
+        self.assertQueryExecuted(qs, "Шедевры рекламы")
+
+    def testCharFieldExclude(self):
+        qs = TagsIndex.objects.exclude(
+            name__in=("Шедевры рекламы", "Новость дня")).match("и")
+        self.assertQueryExecuted(qs, "Шедевры рекламы")
+
