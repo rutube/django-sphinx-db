@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.db.models.base import ModelBase
 
 
 class SphinxRouter(object):
@@ -8,6 +7,7 @@ class SphinxRouter(object):
     """
 
     def is_sphinx_model(self, model_or_obj):
+        from django.db.models.base import ModelBase
         from django_sphinx_db.backend.models import SphinxModel
         if type(model_or_obj) is not ModelBase:
             model = model_or_obj.__class__
