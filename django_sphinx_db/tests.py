@@ -72,8 +72,20 @@ class BackendTestCase(TestCase):
             name__in=("Шедевры рекламы", "Новость дня"), id__gt=44)
         self.assertQueryExecuted(qs, "Шедевры рекламы")
 
-    def testCharFieldExclude(self):
+    def testCharFieldExcludeIn(self):
         qs = TagsIndex.objects.exclude(
             name__in=("Шедевры рекламы", "Новость дня")).match("и")
         self.assertQueryExecuted(qs, "Шедевры рекламы")
 
+    def testCharFieldExcludeOne(self):
+        qs = TagsIndex.objects.exclude(
+            name="Новость дня").match("и")
+        self.assertQueryExecuted(qs, "Новость дня")
+
+    def testIntFieldExcludeOne(self):
+        qs = TagsIndex.objects.exclude(id=44)
+        self.assertQueryExecuted(qs, "id <> 44")
+
+    def testIntFieldExcludeList(self):
+        qs = TagsIndex.objects.exclude(id__in=(44, 66))
+        self.assertQueryExecuted(qs, "id NOT IN")

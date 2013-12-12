@@ -57,8 +57,22 @@ class SphinxWhereNode(WhereNode):
             params = ('@* %s' % params[0], )
             # _OR_ respect the field name, and search on it:
             #params = ('@%s %s' % (field_sql, params[0]), )
+        if self._real_negated:
+            col = lvalue.col
+            if lookup_type == 'exact':
+                sql = '%s <> %%s' % col
+            if lookup_type == 'in':
+                params_placeholder = '(%s)' % (', '.join(['%s'] * len(params)))
+                sql = '%s NOT IN %s' % (col, params_placeholder)
         return sql, params
 
+    def as_sql(self, qn, connection):
+        self._real_negated = self.negated
+        # don't allow Django to add unsupported NOT (...) before all lookups
+        self.negated = False
+        sql_string, result_params = super(SphinxWhereNode, self).as_sql(qn, connection)
+        self.negated = self._real_negated
+        return sql_string, result_params
 
 class SphinxQLCompiler(compiler.SQLCompiler):
     def get_columns(self, *args, **kwargs):
