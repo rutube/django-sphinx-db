@@ -228,7 +228,9 @@ class SphinxQLCompiler(compiler.SQLCompiler):
 
         # percents, added by raw formatting queries, escaped as %%
         sql = re.sub(r'(%[^s])', '%%\1', sql)
-        return sql.encode("utf-8"), args
+        if not isinstance(sql, unicode):
+            sql = sql.decode("utf-8")
+        return sql, args
 
     def get_group_ordering(self):
         group_order_by = getattr(self.query, 'group_order_by', ())
