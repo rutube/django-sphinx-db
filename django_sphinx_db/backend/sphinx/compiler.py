@@ -61,9 +61,11 @@ class SphinxWhereNode(WhereNode):
             col = lvalue.col
             if lookup_type == 'exact':
                 sql = '%s <> %%s' % col
-            if lookup_type == 'in':
+            elif lookup_type == 'in':
                 params_placeholder = '(%s)' % (', '.join(['%s'] * len(params)))
                 sql = '%s NOT IN %s' % (col, params_placeholder)
+            else:
+                raise ValueError("Negative '%s' lookup not supported" % lookup_type)
         return sql, params
 
     def as_sql(self, qn, connection):
