@@ -189,10 +189,6 @@ class SphinxQLCompiler(compiler.SQLCompiler):
                 field = self.query.model._meta.get_field(sphinx_attr)
                 db_column = field.db_column or field.attname
                 expression.append('@' + db_column)
-                if isinstance(lookup, basestring):
-                    lookup = all_field_expr + [lookup]
-                else:
-                    lookup.update(all_field_expr)
                 expression.append("(%s)" % self._serialize(lookup))
             decode = lambda _: _.decode("utf-8") if type(_) is str else _
             match_expr = u"MATCH('%s')" % u' '.join(map(decode, expression))
