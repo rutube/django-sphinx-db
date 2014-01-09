@@ -69,9 +69,17 @@ class SphinxWhereNode(WhereNode):
         return sql, params
 
     def as_sql(self, qn, connection):
-        self._real_negated = self.negated
+        if not hasattr(self, '_real_negated'):
+            self._real_negated = self.negated
         # don't allow Django to add unsupported NOT (...) before all lookups
         self.negated = False
+        # pass-through real negated value (OR connector not supported)
+        if self._real_negated:
+            for child in self.children:
+                if type(child) is tuple:
+                    child[0]._real_negated = True
+                else:
+                    child._real_negated = True
         sql_string, result_params = super(SphinxWhereNode, self).as_sql(qn, connection)
         self.negated = self._real_negated
         return sql_string, result_params

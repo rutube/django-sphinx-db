@@ -80,7 +80,7 @@ class BackendTestCase(TestCase):
 
     def testCharFieldExcludeIn(self):
         qs = TagsIndex.objects.exclude(
-            name__in=(u"Шедевры рекламы", u"Новость дня")).match(u"и")
+            name__in=(u"Шедевры рекламы", u"Новость дня")).match(name=u"или")
         self.assertQueryExecuted(qs, u"Шедевры рекламы")
 
     def testCharFieldExcludeOne(self):
