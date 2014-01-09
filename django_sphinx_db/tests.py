@@ -49,6 +49,8 @@ class BackendTestCase(TestCase):
         query = str(qs.query)
         list(qs)
         substr = substr or self.escaped_match
+        if type(substr) is unicode:
+            substr = substr.encode('utf-8')
         self.assertIn(substr, query)
 
     def testMatchEscaping(self):
@@ -64,28 +66,32 @@ class BackendTestCase(TestCase):
         self.assertQueryExecuted(qs)
 
     def testFieldExactLookup(self):
+        qs = TagsIndex.objects.filter(name__exact=u"Котики")
+        self.assertQueryExecuted(qs, substr=u'@name ("Котики")')
+
+    def testFieldNoUnicodeLookup(self):
         qs = TagsIndex.objects.filter(name__exact="Котики")
-        self.assertQueryExecuted(qs, substr='@name ("Котики")')
+        self.assertQueryExecuted(qs, substr=u'@name ("Котики")')
 
     def testCharFieldIn(self):
         qs = TagsIndex.objects.filter(
-            name__in=("Шедевры рекламы", "Новость дня"), id__gt=44)
-        self.assertQueryExecuted(qs, "Шедевры рекламы")
+            name__in=(u"Шедевры рекламы", u"Новость дня"), id__gt=44)
+        self.assertQueryExecuted(qs, u"Шедевры рекламы")
 
     def testCharFieldExcludeIn(self):
         qs = TagsIndex.objects.exclude(
-            name__in=("Шедевры рекламы", "Новость дня")).match("и")
-        self.assertQueryExecuted(qs, "Шедевры рекламы")
+            name__in=(u"Шедевры рекламы", u"Новость дня")).match(u"и")
+        self.assertQueryExecuted(qs, u"Шедевры рекламы")
 
     def testCharFieldExcludeOne(self):
         qs = TagsIndex.objects.exclude(
-            name="Новость дня").match("и")
-        self.assertQueryExecuted(qs, "Новость дня")
+            name=u"Новость дня").match(u"и")
+        self.assertQueryExecuted(qs, u"Новость дня")
 
     def testIntFieldExcludeOne(self):
         qs = TagsIndex.objects.exclude(id=44)
-        self.assertQueryExecuted(qs, "id <> 44")
+        self.assertQueryExecuted(qs, u"id <> 44")
 
     def testIntFieldExcludeList(self):
         qs = TagsIndex.objects.exclude(id__in=(44, 66))
-        self.assertQueryExecuted(qs, "id NOT IN")
+        self.assertQueryExecuted(qs, u"id NOT IN")
