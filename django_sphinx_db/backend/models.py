@@ -1,3 +1,5 @@
+# coding: utf-8
+
 from MySQLdb import OperationalError
 import re
 from django.conf import settings
@@ -53,14 +55,20 @@ class SphinxQuery(Query):
         return query
 
     def __str__(self):
+        def to_str(text):
+            if type(text) is unicode:
+                # u'тест' => '\xd1\x82\xd0\xb5\xd1\x81\xd1\x82'
+                return text.encode('utf-8')
+            else:
+                # 'тест' => u'\u0442\u0435\u0441\u0442' => '\xd1\x82\xd0\xb5\xd1\x81\xd1\x82'
+                # 'test123' => 'test123'
+                return str(text)
+
         compiler = SphinxQLCompiler(self, connection, None)
         query, params = compiler.as_sql()
-        params = tuple(map(lambda p: str(p).decode("utf-8"), params))
 
-        if type(query) is unicode:
-            return query.decode('utf-8') % params
-        query = query.decode('utf-8') % params
-        return query.encode('utf-8')
+        params = tuple(map(lambda p: to_str(p), params))
+        return to_str(query % params)
 
 
 class SphinxQuerySet(QuerySet):
