@@ -70,6 +70,11 @@ class SphinxQuery(Query):
         params = tuple(map(lambda p: to_str(p), params))
         return to_str(query % params)
 
+    def __unicode__(self):
+        compiler = SphinxQLCompiler(self, connection, None)
+        query, params = compiler.as_sql()
+        return unicode(query % params)
+
 
 class SphinxQuerySet(QuerySet):
 
