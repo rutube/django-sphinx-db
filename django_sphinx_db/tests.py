@@ -95,3 +95,20 @@ class BackendTestCase(TestCase):
     def testIntFieldExcludeList(self):
         qs = TagsIndex.objects.exclude(id__in=(44, 66))
         self.assertQueryExecuted(qs, u"id NOT IN")
+
+    def testRepresentQuery(self):
+        for query_text in (
+            u'тест',
+            'тест',
+            'test тест',
+            u'test тест',
+            '\xd1\x82\xd0\xb5\xd1\x81\xd1\x82',
+            '\u0442\u0435\u0441\u0442',
+            u'\u0442\u0435\u0441\u0442'
+        ):
+            qs = TagsIndex.objects.filter(name__exact=query_text)
+            try:
+                # эквивалент: u"%s" % query_text
+                unicode(qs.query)
+            except UnicodeDecodeError:
+                self.fail('UnicodeDecodeError: %s' % query_text)
