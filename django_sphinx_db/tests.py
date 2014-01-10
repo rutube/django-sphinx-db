@@ -108,7 +108,8 @@ class BackendTestCase(TestCase):
         ):
             qs = TagsIndex.objects.filter(name__exact=query_text)
             try:
-                # эквивалент: u"%s" % query_text
+                # преобразования к unicode и str работают корректно
                 unicode(qs.query)
-            except UnicodeDecodeError:
+                str(qs.query)
+            except (UnicodeDecodeError, UnicodeEncodeError):
                 self.fail('UnicodeDecodeError: %s' % query_text)

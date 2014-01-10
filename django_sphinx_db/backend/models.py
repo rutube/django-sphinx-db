@@ -73,7 +73,8 @@ class SphinxQuery(Query):
     def __unicode__(self):
         compiler = SphinxQLCompiler(self, connection, None)
         query, params = compiler.as_sql()
-        return query % params
+        return unicode(query % params)
+
 
 class SphinxQuerySet(QuerySet):
 
