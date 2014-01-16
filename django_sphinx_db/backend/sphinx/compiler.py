@@ -242,7 +242,6 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         sql = re.sub(r'(%[^s])', '%%\1', sql)
         if not isinstance(sql, unicode):
             sql = sql.decode("utf-8")
-        print sql
         return sql, args
 
     def get_group_ordering(self):
