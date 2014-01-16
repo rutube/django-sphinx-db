@@ -15,6 +15,17 @@ class TagsIndex(SphinxModel):
     name = models.CharField(max_length=255)
 
 
+class VideoIndex(SphinxModel):
+    """ Модель индекса видео."""
+
+    class Meta:
+        managed = False
+        db_table = 'squirrel_video_idx'
+
+    id = models.CharField(max_length=255, db_column='docid', primary_key=True)
+    title = models.CharField(max_length=255)
+
+
 from django.test.simple import DjangoTestSuiteRunner
 
 
@@ -48,6 +59,7 @@ class BackendTestCase(TestCase):
     def assertQueryExecuted(self, qs, substr=None):
         query = str(qs.query)
         list(qs)
+        print query
         substr = substr or self.escaped_match
         if type(substr) is unicode:
             substr = substr.encode('utf-8')
@@ -82,6 +94,16 @@ class BackendTestCase(TestCase):
         qs = TagsIndex.objects.exclude(
             name__in=(u"Шедевры рекламы", u"Новость дня")).match(name=u"или")
         self.assertQueryExecuted(qs, u"Шедевры рекламы")
+
+    def testCharFieldExcludeInWithoutMatch(self):
+        """ MATCH(@field1 value1 @field2 -(value2, value3)) """
+        qs = VideoIndex.objects.filter(title=u'Без названия')
+        total = qs.count()
+        video1 = qs[0]
+        video2 = qs[1]
+        ids = (video1.id, video2.id)
+        excluded = qs.exclude(id__in=ids).count()
+        self.assertEqual(total, excluded + 2)
 
     def testCharFieldExcludeOne(self):
         qs = TagsIndex.objects.exclude(

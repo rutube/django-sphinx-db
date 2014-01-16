@@ -161,19 +161,27 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         values_list = [item for s in values_list for item in ensure_list(s)]
         positive_list = filter(lambda s: not s.startswith('-'), values_list)
         negative_list = filter(lambda s: s.startswith('-'), values_list)
-        def quote(s):
+        def quote(s, negative=True):
+            prefix = '-' if negative else ''
             if s.startswith('"'):
                 return s
-            negate = s.startswith('-')
-            if not negate:
+            negative = s.startswith('-')
+            if not negative:
                 return '"%s"' % s
             s = s[1:]
             if s.startswith('"'):
-                return '-%s' % s
-            return '-"%s"' % s
+                return '%s%s' % (prefix, s)
+            return '%s"%s"' % (prefix, s)
+
         positive = "|".join(map(quote, positive_list))
-        negative = ' '.join(map(quote, negative_list))
-        return ('%s %s' % (positive, negative)).strip(' ')
+        if not positive_list:
+            negative = '|'.join(quote(n, negative=False) for n in negative_list)
+            template = '%s -(%s)'
+        else:
+            negative = ' '.join(map(quote, negative_list))
+            template = '%s %s'
+        result = template % (positive.strip(' '), negative.strip(' '))
+        return result.strip(' ')
 
     def as_sql(self, with_limits=True, with_col_aliases=False):
         """ Patching final SQL query."""
@@ -234,6 +242,7 @@ class SphinxQLCompiler(compiler.SQLCompiler):
         sql = re.sub(r'(%[^s])', '%%\1', sql)
         if not isinstance(sql, unicode):
             sql = sql.decode("utf-8")
+        print sql
         return sql, args
 
     def get_group_ordering(self):
