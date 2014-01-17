@@ -113,3 +113,16 @@ class BackendTestCase(TestCase):
                 str(qs.query)
             except (UnicodeDecodeError, UnicodeEncodeError):
                 self.fail('UnicodeDecodeError: %s' % query_text)
+
+    def testCastIntToChar(self):
+        """
+        делаем запрос с условием по char филду, используя
+        числовое значение, не должны получить экспешн
+        """
+
+        try:
+            TagsIndex.objects.get(name=100500)
+        except TagsIndex.DoesNotExist:
+            pass
+        except AttributeError:
+            self.fail('Fail while casting int to char')

@@ -104,6 +104,9 @@ class SphinxQuerySet(QuerySet):
                 result.append(self._negate_expression(negate, v))
             return result
         else:
+            if not isinstance(lookup, (str, unicode)):
+                lookup = unicode(lookup)
+
             if not lookup.startswith('"'):
                 lookup = '"%s"' % lookup
             if negate:
