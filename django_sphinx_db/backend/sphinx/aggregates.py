@@ -15,6 +15,26 @@ class Aggregate(base_aggregate):
             # единственное отличие от базового класса
             # если прилетает tuple с алиасом имени таблицы
             # не учитываем его, а берем только имя филда
+
+            # базовый метод полностью:
+            # def as_sql(self, qn, connection):
+            #     "Return the aggregate, rendered as SQL."
+            #
+            #     if hasattr(self.col, 'as_sql'):
+            #         field_name = self.col.as_sql(qn, connection)
+            #     elif isinstance(self.col, (list, tuple)):
+            #         field_name = '.'.join([qn(c) for c in self.col])
+            #     else:
+            #         field_name = self.col
+            #
+            #     params = {
+            #         'function': self.sql_function,
+            #         'field': field_name
+            #     }
+            #     params.update(self.extra)
+            #
+            #     return self.sql_template % params
+
             field_name = self.col[-1]
         else:
             field_name = self.col
