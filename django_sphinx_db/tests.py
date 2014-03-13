@@ -1,9 +1,13 @@
 # coding: utf-8
+import mock
+from MySQLdb import OperationalError
 
 from django.test import TestCase
+from django.test.utils import override_settings
 from django.db import models
 from django.db.models import Sum
-from backend.models import SphinxModel, sphinx_escape
+from backend.models import SphinxModel, sphinx_escape, SphinxQuerySet
+
 
 class TagsIndex(SphinxModel):
     """ Модель индекса тегов."""
@@ -42,6 +46,17 @@ class SphinxSearchTestRunner(DjangoTestSuiteRunner):
         pass
 
 
+
+_raised = False
+def schredinger_exception(ExceptionObject):
+    def _raise():
+        global _raised
+        if not _raised:
+            _raised = not _raised
+            raise ExceptionObject
+    return _raise
+
+
 class BackendTestCase(TestCase):
 
     def _fixture_setup(self):
@@ -54,6 +69,9 @@ class BackendTestCase(TestCase):
 
     def setUp(self):
         super(BackendTestCase, self).setUp()
+        global _raised
+        _raised = False
+
         self.escaped_match = r"MATCH('\^abc')"
         self.query = "^abc"
 
@@ -157,3 +175,53 @@ class BackendTestCase(TestCase):
         aggr_sum = qs.aggregate(Sum('id'))['id__sum']
 
         self.assertEqual(iter_sum, aggr_sum)
+
+    @override_settings(REPEAT_ON_EXCEPTION_MSGS=['Connection reset by peer'])
+    @override_settings(SPHINX_IMMORTAL=False)
+    def testRepeatOnKnownException(self):
+        """
+        проверяем механизм попытки повторения операции
+        получения данных QuerySet при определенных ошибках
+        """
+
+        with mock.patch('django.db.models.query.QuerySet.iterator') as \
+                patched_iterator:
+
+            patched_iterator.side_effect = schredinger_exception(
+                 OperationalError('Connection reset by peer'))
+
+            qs = SphinxQuerySet(model=TagsIndex)
+
+            # Exception shall not pass!!!
+            list(qs.all())
+
+    @override_settings(REPEAT_ON_EXCEPTION_MSGS=['Connection reset by peer'])
+    @override_settings(SPHINX_IMMORTAL=False)
+    def testNoRepeatOnUnknownException(self):
+        """
+        при эксепшне с другим текстом, должны получить ошибку
+        """
+
+        with mock.patch('django.db.models.query.QuerySet.iterator') as \
+                patched_iterator:
+
+            patched_iterator.side_effect = schredinger_exception(
+                 OperationalError('Some other error'))
+
+            qs = SphinxQuerySet(model=TagsIndex)
+
+            with self.assertRaises(OperationalError):
+                list(qs.all())
+
+    @override_settings(REPEAT_ON_EXCEPTION_MSGS=['Connection reset by peer'])
+    @override_settings(SPHINX_IMMORTAL=True)
+    def testExceptionsInImmortalMode(self):
+        """
+        в бессметрном режиме никакие исключения не рейзятся никогда
+        """
+        with mock.patch('django.db.models.query.QuerySet.iterator') as \
+                patched_iterator:
+
+            patched_iterator.side_effect = OperationalError()
+            qs = SphinxQuerySet(model=TagsIndex)
+            self.assertEqual(list(qs.all()), [])

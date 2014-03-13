@@ -34,6 +34,14 @@ def immortal_generator(func):
                 logger.error(u"Sphinx search error at '{}'".format(query),
                              exc_info=True)
                 return
+
+            if e.message in getattr(settings, 'REPEAT_ON_EXCEPTION_MSGS', []):
+                # при получении данного експешна
+                # необходиом попробовать повторить операцию
+                # и только в случае повторной ошибки возбудить исключение
+                gen = func(*args, **kwargs)
+                for v in gen:
+                    yield v
             raise
     return inner
 
