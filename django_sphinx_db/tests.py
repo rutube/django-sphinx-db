@@ -2,6 +2,7 @@
 
 from django.test import TestCase
 from django.db import models
+from django.db.models import Sum
 from backend.models import SphinxModel, sphinx_escape
 
 class TagsIndex(SphinxModel):
@@ -148,3 +149,11 @@ class BackendTestCase(TestCase):
             pass
         except AttributeError:
             self.fail('Fail while casting int to char')
+
+    def testAggregateSum(self):
+        qs = TagsIndex.objects.match(u'"ТВ"'.encode('utf-8'))
+
+        iter_sum = sum(qs.values_list('id', flat=True))
+        aggr_sum = qs.aggregate(Sum('id'))['id__sum']
+
+        self.assertEqual(iter_sum, aggr_sum)

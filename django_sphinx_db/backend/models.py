@@ -8,7 +8,7 @@ from django.db.models.sql import Query, AND
 from django.db.models.query import QuerySet
 from django.utils.log import getLogger
 from django_sphinx_db.backend.sphinx.compiler import SphinxWhereNode, SphinxExtraWhere, SphinxQLCompiler
-
+from django_sphinx_db.backend.sphinx import aggregates as sphinx_aggregates
 
 def sphinx_escape(value):
     if type(value) not in (str, unicode):
@@ -41,6 +41,8 @@ def immortal_generator(func):
 class SphinxQuery(Query):
     _clonable = ('options', 'match', 'group_limit', 'group_order_by',
                  'with_meta')
+
+    aggregates_module = sphinx_aggregates
 
     def __init__(self, *args, **kwargs):
         kwargs.setdefault('where', SphinxWhereNode)
