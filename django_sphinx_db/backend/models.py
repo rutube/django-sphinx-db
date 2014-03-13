@@ -42,7 +42,9 @@ def immortal_generator(func):
                 gen = func(*args, **kwargs)
                 for v in gen:
                     yield v
-            raise
+
+            else:
+                raise
     return inner
 
 
