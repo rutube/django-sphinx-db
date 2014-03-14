@@ -225,3 +225,22 @@ class BackendTestCase(TestCase):
             patched_iterator.side_effect = OperationalError()
             qs = SphinxQuerySet(model=TagsIndex)
             self.assertEqual(list(qs.all()), [])
+
+
+    @override_settings(REPEAT_ON_EXCEPTION_MSGS=['Connection reset by peer'])
+    @override_settings(SPHINX_IMMORTAL=False)
+    def testRepeatOnSecondException(self):
+        """
+        в случае, если при повторной попытке итерации
+        опять возникает также самая ошибка, она всетаки должна срейзиться
+        """
+
+        with mock.patch('django.db.models.query.QuerySet.iterator') as \
+                patched_iterator:
+
+            patched_iterator.side_effect = OperationalError('Connection reset by peer')
+
+            qs = SphinxQuerySet(model=TagsIndex)
+
+            with self.assertRaises(OperationalError):
+                list(qs.all())
