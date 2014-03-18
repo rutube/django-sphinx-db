@@ -46,17 +46,6 @@ class SphinxSearchTestRunner(DjangoTestSuiteRunner):
         pass
 
 
-
-_raised = False
-def schredinger_exception(ExceptionObject):
-    def _raise():
-        global _raised
-        if not _raised:
-            _raised = not _raised
-            raise ExceptionObject
-    return _raise
-
-
 class BackendTestCase(TestCase):
 
     def _fixture_setup(self):
@@ -184,11 +173,13 @@ class BackendTestCase(TestCase):
         получения данных QuerySet при определенных ошибках
         """
 
+        tag = TagsIndex.objects.all()[0]
+
+
         with mock.patch('django.db.models.query.QuerySet.iterator') as \
                 patched_iterator:
 
-            patched_iterator.side_effect = schredinger_exception(
-                 OperationalError('Connection reset by peer'))
+            patched_iterator.side_effect = [OperationalError('Connection reset by peer'), [tag]]
 
             qs = SphinxQuerySet(model=TagsIndex)
 
@@ -205,8 +196,7 @@ class BackendTestCase(TestCase):
         with mock.patch('django.db.models.query.QuerySet.iterator') as \
                 patched_iterator:
 
-            patched_iterator.side_effect = schredinger_exception(
-                 OperationalError('Some other error'))
+            patched_iterator.side_effect = [OperationalError('some other error'), None]
 
             qs = SphinxQuerySet(model=TagsIndex)
 
