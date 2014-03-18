@@ -12,6 +12,8 @@ LESS_DJANGO_16 = VERSION[:2] < (1,6)
 
 class Aggregate(base_aggregate):
     def as_sql(self, qn, connection):
+        params = []
+
         if hasattr(self.col, 'as_sql'):
             if LESS_DJANGO_16:
                 field_name = self.col.as_sql(qn, connection)
@@ -45,16 +47,16 @@ class Aggregate(base_aggregate):
         else:
             field_name = self.col
 
-        params = {
+        substitutions = {
             'function': self.sql_function,
             'field': field_name
         }
-        params.update(self.extra)
+        substitutions.update(self.extra)
 
         if LESS_DJANGO_16:
-            return self.sql_template % params
+            return self.sql_template % substitutions
         else:
-            return self.sql_template % params, {}
+            return self.sql_template % substitutions, params
 
 
 class Avg(Aggregate):
