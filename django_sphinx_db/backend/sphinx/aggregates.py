@@ -1,16 +1,24 @@
 # coding: utf-8
 from django.db.models.fields import IntegerField, FloatField
+from django import VERSION
 
 ordinal_aggregate_field = IntegerField()
 computed_aggregate_field = FloatField()
 
 from django.db.models.sql.aggregates import Aggregate as base_aggregate
 
+LESS_DJANGO_16 = VERSION[:2] < (1,6)
+
 
 class Aggregate(base_aggregate):
     def as_sql(self, qn, connection):
+        params = []
+
         if hasattr(self.col, 'as_sql'):
-            field_name = self.col.as_sql(qn, connection)
+            if LESS_DJANGO_16:
+                field_name = self.col.as_sql(qn, connection)
+            else:
+                field_name, params = self.col.as_sql(qn, connection)
         elif isinstance(self.col, (list, tuple)):
             # единственное отличие от базового класса
             # если прилетает tuple с алиасом имени таблицы
@@ -39,13 +47,16 @@ class Aggregate(base_aggregate):
         else:
             field_name = self.col
 
-        params = {
+        substitutions = {
             'function': self.sql_function,
             'field': field_name
         }
-        params.update(self.extra)
+        substitutions.update(self.extra)
 
-        return self.sql_template % params
+        if LESS_DJANGO_16:
+            return self.sql_template % substitutions
+        else:
+            return self.sql_template % substitutions, params
 
 
 class Avg(Aggregate):
