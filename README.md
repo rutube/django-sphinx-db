@@ -1,5 +1,5 @@
-A fork of [SmartFile](www.smartfile.com) [Django](www.djangoproject.com)
-backend for [SphinxSearch](www.sphinxsearch.com) search engine.
+A fork of [SmartFile](http://www.smartfile.com) [Django](http://www.djangoproject.com)
+backend for [SphinxSearch](http://www.sphinxsearch.com) search engine.
 
 Original README can be found [there](https://github.com/smartfile/django-sphinx-db)
 
