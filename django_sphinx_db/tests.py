@@ -67,7 +67,6 @@ class BackendTestCase(TestCase):
     def assertQueryExecuted(self, qs, substr=None):
         query = str(qs.query)
         list(qs)
-        print query
         substr = substr or self.escaped_match
         if type(substr) is unicode:
             substr = substr.encode('utf-8')
