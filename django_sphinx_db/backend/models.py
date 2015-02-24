@@ -13,7 +13,7 @@ from django_sphinx_db.backend.sphinx import aggregates as sphinx_aggregates
 def sphinx_escape(value):
     if type(value) not in (str, unicode):
         return value
-    value = re.sub(r"([=<>()|!@~&/^$\-\"\\])", r'\\\1', value)
+    value = re.sub(r"([=<>()|!@~&/^$\-\'\"\\])", r'\\\1', value)
     value = re.sub(r'(SENTENCE|PARAGRAPH)', r'\\\1', value, flags=re.I)
     return value
 

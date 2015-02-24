@@ -233,3 +233,9 @@ class BackendTestCase(TestCase):
 
             with self.assertRaises(OperationalError):
                 list(qs.all())
+
+    def testSphinxEscape(self):
+        query = "Conan O'Brien"
+        expected = "Conan O\\'Brien"
+        # real expected value == "Conan O\'Brien"
+        self.assertEqual(expected, sphinx_escape(query))
