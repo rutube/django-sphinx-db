@@ -136,8 +136,8 @@ class SphinxQLCompiler(compiler.SQLCompiler):
 
     def get_grouping(self, having_group_by=None, ordering_group_by=None, ):
         # excluding from ordering_group_by items added from "extra_select"
-        extra = self.query.extra
-        self.query.extra = SortedDict()
+        #xxx extra = self.query.extra
+        #xxx self.query.extra = SortedDict()
         if django.VERSION >= DJANGO16:
             result, params = super(SphinxQLCompiler, self).get_grouping(
                 having_group_by, ordering_group_by)
@@ -146,7 +146,8 @@ class SphinxQLCompiler(compiler.SQLCompiler):
                 ordering_group_by)
         else:
             result, params = super(SphinxQLCompiler, self).get_grouping()
-        self.query.extra = extra
+        #xxx self.query.extra = extra
+        #xxx правки для запуска на Django 1.7.x. Временное решение
         # removing parentheses from group by fields
         for i in range(len(result)):
             g = result[i]
