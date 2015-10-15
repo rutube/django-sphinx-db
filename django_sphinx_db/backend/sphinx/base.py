@@ -23,9 +23,9 @@ class SphinxOperations(MySQLDatabaseOperations):
 
 
 class SphinxCreation(MySQLDatabaseCreation):
-    def create_test_db(self, verbosity=1, autoclobber=False):
+    def create_test_db(self, verbosity=1, autoclobber=False, serialize=False):
         # NOOP, test using regular sphinx database.
-        if self.connection.settings_dict['TEST_NAME']:
+        if 'TEST_NAME' in self.connection.settings_dict:
             test_name = self.connection.settings_dict['TEST_NAME']
             self.connection.close()
             self.connection.settings_dict['NAME'] = test_name

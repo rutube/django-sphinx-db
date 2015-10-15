@@ -269,7 +269,7 @@ class SphinxQuerySet(QuerySet):
 class SphinxManager(models.Manager):
     use_for_related_fields = True
 
-    def get_query_set(self):
+    def get_queryset(self):
         # Determine which fields are sphinx fields (full-text data) and
         # defer loading them. Sphinx won't return them.
         # TODO: we probably need a way to keep these from being loaded
