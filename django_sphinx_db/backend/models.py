@@ -7,8 +7,10 @@ from django.db import models, connections, connection
 from django.db.models.sql import Query, AND
 from django.db.models.query import QuerySet
 from django.utils.log import getLogger
-from django_sphinx_db.backend.sphinx.compiler import SphinxWhereNode, SphinxExtraWhere, SphinxQLCompiler
+from django_sphinx_db.backend.sphinx.compiler import SphinxWhereNode, SphinxExtraWhere, SphinxQLCompiler, DJANGO17
 from django_sphinx_db.backend.sphinx import aggregates as sphinx_aggregates
+import django
+
 
 def sphinx_escape(value):
     if type(value) not in (str, unicode):
@@ -277,6 +279,9 @@ class SphinxManager(models.Manager):
         sphinx_fields = [field.name for field in self.model._meta.fields
                          if isinstance(field, SphinxField)]
         return SphinxQuerySet(self.model).defer(*sphinx_fields)
+
+    if django.VERSION < DJANGO17:
+        get_query_set = get_queryset
 
     def options(self, **kw):
         return self.get_query_set().options(**kw)
