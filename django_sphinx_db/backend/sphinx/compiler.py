@@ -12,6 +12,7 @@ from django.utils.datastructures import SortedDict
 
 DJANGO15 = (1, 5, 0, 'alpha', 0)
 DJANGO16 = (1, 6, 0, 'alpha', 0)
+DJANGO17 = (1, 7, 0, 'alpha', 0)
 
 
 class SphinxExtraWhere(ExtraWhere):
@@ -136,8 +137,13 @@ class SphinxQLCompiler(compiler.SQLCompiler):
 
     def get_grouping(self, having_group_by=None, ordering_group_by=None, ):
         # excluding from ordering_group_by items added from "extra_select"
-        #xxx extra = self.query.extra
-        #xxx self.query.extra = SortedDict()
+        if django.VERSION >= DJANGO17:
+            extra = self.query._extra
+            self.query._extra = SortedDict()
+        else:
+            extra = self.query.extra
+            self.query.extra = SortedDict()
+
         if django.VERSION >= DJANGO16:
             result, params = super(SphinxQLCompiler, self).get_grouping(
                 having_group_by, ordering_group_by)
@@ -146,8 +152,12 @@ class SphinxQLCompiler(compiler.SQLCompiler):
                 ordering_group_by)
         else:
             result, params = super(SphinxQLCompiler, self).get_grouping()
-        #xxx self.query.extra = extra
-        #xxx правки для запуска на Django 1.7.x. Временное решение
+
+        if django.VERSION >= DJANGO17:
+            self.query._extra = extra
+        else:
+            self.query.extra = extra
+
         # removing parentheses from group by fields
         for i in range(len(result)):
             g = result[i]
